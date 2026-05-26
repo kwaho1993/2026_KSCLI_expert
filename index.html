@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2026 면역학회</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #525659;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        /* ── Loading ── */
+        #loading {
+            position: fixed;
+            inset: 0;
+            background: #525659;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            z-index: 200;
+            gap: 12px;
+            font-size: 14px;
+        }
+        #loading-bar-wrap {
+            width: 220px;
+            height: 3px;
+            background: rgba(255,255,255,0.25);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        #loading-bar {
+            height: 100%;
+            width: 0%;
+            background: white;
+            border-radius: 2px;
+            transition: width 0.2s;
+        }
+
+        /* ── Viewer ── */
+        #viewer {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 24px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .page-wrap {
+            position: relative;
+            width: 100%;
+            height: 0;
+            background: #d0d0d0;
+            overflow: hidden;
+        }
+        .page-wrap img {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            display: block;
+        }
+
+        /* ── TOC 버튼 (우하단 FAB) ── */
+        #toc-btn {
+            position: fixed;
+            bottom: 24px;
+            right: 20px;
+            z-index: 150;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: rgba(30,30,32,0.88);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.45);
+            transition: background 0.15s;
+        }
+        #toc-btn:active { background: rgba(50,50,53,0.95); }
+
+        /* ── 백드롭 ── */
+        #toc-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 160;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s;
+        }
+        #toc-backdrop.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* ── 드로어 ── */
+        #toc-drawer {
+            position: fixed;
+            top: 0; left: 0; bottom: 0;
+            width: min(280px, 80vw);
+            background: #1c1c1e;
+            color: #e8e8e8;
+            z-index: 170;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            transform: translateX(-100%);
+            transition: transform 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        #toc-drawer.open { transform: translateX(0); }
+
+        .toc-header {
+            padding: 20px 16px 14px;
+            font-size: 16px;
+            font-weight: 700;
+            border-bottom: 1px solid #333;
+        }
+        .toc-section-label {
+            padding: 14px 16px 4px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .toc-item {
+            display: block;
+            width: 100%;
+            padding: 10px 16px 10px 20px;
+            font-size: 13px;
+            line-height: 1.45;
+            color: #bbb;
+            background: none;
+            border: none;
+            text-align: left;
+            cursor: pointer;
+            transition: background 0.12s, color 0.12s;
+        }
+        .toc-item:active {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+
+        .toc-download {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 13px 16px;
+            color: #e8e8e8;
+            background: rgba(255,255,255,0.06);
+            border-bottom: 1px solid #333;
+            text-decoration: none;
+            font-size: 14px;
+            transition: background 0.12s;
+        }
+        .toc-download:active { background: rgba(255,255,255,0.12); }
+    </style>
+</head>
+<body>
+
+<div id="loading">
+    <span>페이지를 불러오는 중...</span>
+    <div id="loading-bar-wrap"><div id="loading-bar"></div></div>
+    <span id="loading-count"></span>
+</div>
+
+<div id="viewer"></div>
+
+<div id="toc-backdrop"></div>
+<div id="toc-drawer">
+    <div class="toc-header">목차</div>
+    <a class="toc-download" href="book/journal.pdf" download="2026_KSCLI_학술지.pdf">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M8 1v9M8 10l-3-3M8 10l3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M2 12h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        전체 PDF 다운로드
+    </a>
+    <div id="toc-list"></div>
+</div>
+
+<button id="toc-btn" aria-label="목차 열기">
+    <svg width="20" height="16" viewBox="0 0 20 16" fill="none">
+        <rect y="0"    width="20" height="2.5" rx="1.25" fill="white"/>
+        <rect y="6.75" width="20" height="2.5" rx="1.25" fill="white"/>
+        <rect y="13.5" width="20" height="2.5" rx="1.25" fill="white"/>
+    </svg>
+</button>
+
+<script>
+const RENDER_MARGIN = 800;
+const UNLOAD_MARGIN = 3000;
+const MAX_CONCURRENT = 4;
+
+const viewer       = document.getElementById('viewer');
+const loadingEl    = document.getElementById('loading');
+const loadingBar   = document.getElementById('loading-bar');
+const loadingCount = document.getElementById('loading-count');
+const tocList      = document.getElementById('toc-list');
+const tocDrawer    = document.getElementById('toc-drawer');
+const tocBackdrop  = document.getElementById('toc-backdrop');
+const tocBtn       = document.getElementById('toc-btn');
+
+const pages        = [];
+const pdfFirstPage = [];
+
+let activeRenders = 0;
+const renderQueue = [];
+
+function parseName(url) {
+    return url.split('/').pop().replace('.pdf', '')
+        .replace(/^(광고|연자)\d+_/, '')
+        .replace(/_/g, ' ');
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+
+async function init() {
+    let metadata;
+    try {
+        metadata = await fetch('book/metadata.json').then(r => {
+            if (!r.ok) throw new Error(r.status);
+            return r.json();
+        });
+    } catch {
+        loadingEl.innerHTML = '<span style="color:#f88">book/metadata.json 을 찾을 수 없습니다.<br>generate_metadata.py 를 먼저 실행하세요.</span>';
+        return;
+    }
+
+    const total = metadata.reduce((s, m) => s + m.pages.length, 0);
+    let done = 0;
+
+    for (const item of metadata) {
+        pdfFirstPage.push(pages.length);
+
+        for (const page of item.pages) {
+            const wrap = document.createElement('div');
+            wrap.className = 'page-wrap';
+            wrap.style.paddingBottom = `${(page.ratio * 100).toFixed(4)}%`;
+            viewer.appendChild(wrap);
+
+            pages.push({
+                wrap,
+                img: page.img,
+                aspectRatio: page.ratio,
+                state: 'idle',
+                el: null,
+            });
+
+            done++;
+            loadingBar.style.width = `${(done / total * 100).toFixed(0)}%`;
+            loadingCount.textContent = `${done} / ${total}`;
+        }
+    }
+
+    buildToc(metadata);
+    loadingEl.style.display = 'none';
+    restoreScrollPosition();
+    updateVisibility();
+    window.addEventListener('scroll', scheduleUpdate, { passive: true });
+    window.addEventListener('scroll', saveScrollPosition, { passive: true });
+    window.addEventListener('resize', onResize, { passive: true });
+}
+
+// ── TOC ──────────────────────────────────────────────────────────────────────
+
+function buildToc(metadata) {
+    [
+        { label: '광고', test: url => url.includes('/ad/') },
+        { label: '연자', test: url => url.includes('/papers/') },
+    ].forEach(({ label, test }) => {
+        const labelEl = document.createElement('div');
+        labelEl.className = 'toc-section-label';
+        labelEl.textContent = label;
+        tocList.appendChild(labelEl);
+
+        metadata.forEach((item, i) => {
+            if (!test(item.url)) return;
+            const btn = document.createElement('button');
+            btn.className = 'toc-item';
+            btn.textContent = parseName(item.url);
+            btn.addEventListener('click', () => {
+                navigateTo(i);
+                closeDrawer();
+            });
+            tocList.appendChild(btn);
+        });
+    });
+}
+
+tocBtn.addEventListener('click', () =>
+    tocDrawer.classList.contains('open') ? closeDrawer() : openDrawer()
+);
+tocBackdrop.addEventListener('click', closeDrawer);
+
+function openDrawer()  { tocDrawer.classList.add('open');    tocBackdrop.classList.add('open'); }
+function closeDrawer() { tocDrawer.classList.remove('open'); tocBackdrop.classList.remove('open'); }
+
+function navigateTo(pdfIndex) {
+    for (const p of renderQueue) p.state = 'idle';
+    renderQueue.length = 0;
+
+    const idx = pdfFirstPage[pdfIndex];
+    if (idx == null) return;
+
+    // target 5페이지 전으로 instant 점프 후 주변 페이지 미리 로드
+    const nearIdx = Math.max(0, idx - 5);
+    pages[nearIdx].wrap.scrollIntoView({ behavior: 'instant', block: 'start' });
+    updateVisibility();
+
+    // 새 프레임에서 smooth 이동 시작 (instant 반영 후)
+    requestAnimationFrame(() => {
+        pages[idx].wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+}
+
+// ── Rendering ────────────────────────────────────────────────────────────────
+
+let rafId = null;
+function scheduleUpdate() {
+    if (!rafId) rafId = requestAnimationFrame(() => { rafId = null; updateVisibility(); });
+}
+
+function updateVisibility() {
+    const vTop = window.scrollY;
+    const vBot = vTop + window.innerHeight;
+
+    for (const p of pages) {
+        const rect = p.wrap.getBoundingClientRect();
+        const top  = rect.top  + window.scrollY;
+        const bot  = rect.bottom + window.scrollY;
+
+        const inRender = bot >= vTop - RENDER_MARGIN && top <= vBot + RENDER_MARGIN;
+        const inKeep   = bot >= vTop - UNLOAD_MARGIN  && top <= vBot + UNLOAD_MARGIN;
+
+        if (inRender && p.state === 'idle') {
+            enqueue(p);
+        } else if (!inKeep && p.state === 'rendered') {
+            unload(p);
+        }
+    }
+}
+
+function enqueue(p) {
+    p.state = 'queued';
+    renderQueue.push(p);
+    drain();
+}
+
+function drain() {
+    while (activeRenders < MAX_CONCURRENT && renderQueue.length > 0) {
+        const p = renderQueue.shift();
+        if (p.state !== 'queued') continue;
+        activeRenders++;
+        renderPage(p).finally(() => { activeRenders--; drain(); });
+    }
+}
+
+async function renderPage(p) {
+    p.state = 'rendering';
+    try {
+        const el = document.createElement('img');
+        el.decoding = 'async';
+        await new Promise((res, rej) => { el.onload = res; el.onerror = rej; el.src = p.img; });
+        if (p.state !== 'rendering') return;
+        p.wrap.appendChild(el);
+        p.el = el;
+        p.state = 'rendered';
+    } catch (err) {
+        console.error('Render error:', err);
+        p.state = 'idle';
+    }
+}
+
+function unload(p) {
+    if (p.state === 'queued') {
+        const idx = renderQueue.indexOf(p);
+        if (idx !== -1) renderQueue.splice(idx, 1);
+    }
+    if (p.el) { p.el.remove(); p.el = null; }
+    p.state = 'idle';
+}
+
+let resizeTimer;
+function onResize() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+        for (const p of pages) if (p.state !== 'idle') unload(p);
+        updateVisibility();
+    }, 150);
+}
+
+// ── 스크롤 위치 저장/복원 ──────────────────────────────────────────────────────
+
+const SCROLL_KEY = 'kscli-pdf';
+
+function getVisiblePdfIndex() {
+    const threshold = window.scrollY + window.innerHeight * 0.25;
+    let idx = 0;
+    for (let i = 0; i < pdfFirstPage.length; i++) {
+        const top = pages[pdfFirstPage[i]].wrap.getBoundingClientRect().top + window.scrollY;
+        if (top <= threshold) idx = i;
+        else break;
+    }
+    return idx;
+}
+
+let saveTimer;
+function saveScrollPosition() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+        localStorage.setItem(SCROLL_KEY, getVisiblePdfIndex());
+    }, 500);
+}
+
+function restoreScrollPosition() {
+    const saved = parseInt(localStorage.getItem(SCROLL_KEY));
+    if (!isNaN(saved) && saved > 0 && pdfFirstPage[saved] != null) {
+        pages[pdfFirstPage[saved]].wrap.scrollIntoView({ behavior: 'instant', block: 'start' });
+    }
+}
+
+// ── Service Worker 등록 ────────────────────────────────────────────────────────
+
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(console.error);
+}
+
+init();
+</script>
+</body>
+</html>
