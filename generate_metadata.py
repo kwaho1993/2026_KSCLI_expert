@@ -19,10 +19,11 @@ import qrcode
 
 load_dotenv()
 
-SITE_URL          = os.getenv('SITE_URL',          'https://kwaho1993.github.io/2026_KSCLI/')
-AD_RENDER_DPI     = int(os.getenv('AD_RENDER_DPI',     '150'))
-AD_WEBP_QUALITY   = int(os.getenv('AD_WEBP_QUALITY',   '85'))
-PAPER_RENDER_DPI  = int(os.getenv('PAPER_RENDER_DPI',  '150'))
+SITE_URL           = os.getenv('SITE_URL',           'https://kwaho1993.github.io/2026_KSCLI/')
+JOURNAL_FILENAME   = os.getenv('JOURNAL_FILENAME',   'journal.pdf')
+AD_RENDER_DPI      = int(os.getenv('AD_RENDER_DPI',     '150'))
+AD_WEBP_QUALITY    = int(os.getenv('AD_WEBP_QUALITY',   '85'))
+PAPER_RENDER_DPI   = int(os.getenv('PAPER_RENDER_DPI',  '150'))
 PAPER_WEBP_QUALITY = int(os.getenv('PAPER_WEBP_QUALITY', '85'))
 
 IMG_DIR   = Path('book/img')
@@ -103,7 +104,8 @@ for path in all_files:
         print(f'  FAIL  {path.name}: {e}')
 
 out = Path('book/metadata.json')
-out.write_text(json.dumps(metadata, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
+output = {"journalFilename": JOURNAL_FILENAME, "docs": metadata}
+out.write_text(json.dumps(output, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
 print(f'\n→ {out}  ({out.stat().st_size:,} bytes)')
 
 # ── 학술지 PDF 생성 (WebP 이미지 → PDF 재조립) ───────────────────────────────────

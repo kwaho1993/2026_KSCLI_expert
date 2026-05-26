@@ -176,7 +176,7 @@
 <div id="toc-backdrop"></div>
 <div id="toc-drawer">
     <div class="toc-header">목차</div>
-    <a class="toc-download" href="book/journal.pdf" download="2026_KSCLI_학술지.pdf">
+    <a class="toc-download" href="book/journal.pdf" download>
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M8 1v9M8 10l-3-3M8 10l3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M2 12h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
@@ -234,10 +234,13 @@ async function init() {
         return;
     }
 
-    const total = metadata.reduce((s, m) => s + m.pages.length, 0);
+    document.querySelector('.toc-download').download = metadata.journalFilename;
+
+    const docs  = metadata.docs;
+    const total = docs.reduce((s, m) => s + m.pages.length, 0);
     let done = 0;
 
-    for (const item of metadata) {
+    for (const item of docs) {
         pdfFirstPage.push(pages.length);
 
         for (const page of item.pages) {
@@ -260,7 +263,7 @@ async function init() {
         }
     }
 
-    buildToc(metadata);
+    buildToc(docs);
     loadingEl.style.display = 'none';
     restoreScrollPosition();
     updateVisibility();
